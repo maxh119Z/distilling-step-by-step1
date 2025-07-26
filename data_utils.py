@@ -483,7 +483,42 @@ class ANLI1DatasetLoader(ANLIDatasetLoader):
         super().__init__(dataset_name, source_dataset_name, dataset_version, has_valid, split_map,
                  batch_size, train_batch_idxs, test_batch_idxs, valid_batch_idxs=valid_batch_idxs)
 
+class SafetyDatasetLoader(DatasetLoader):
+    def __init__(self):
+        dataset_name = 'safety'
+        source_dataset_name = None  # We are loading from a local file
+        dataset_version = None
+        has_valid = False
+        split_map = {
+            'train': 'train',
+        }
+        batch_size = 500  # These values are placeholders
+        train_batch_idxs = range(1)
+        test_batch_idxs = range(1)
 
+        super().__init__(dataset_name, source_dataset_name, dataset_version, has_valid, split_map,
+                         batch_size, train_batch_idxs, test_batch_idxs)
+
+    def load_from_json(self):
+        # This function loads your specific JSON file.
+        data_files = {'train': f'{self.data_root}/{self.dataset_name}/{self.dataset_name}_train.json'}
+        datasets = load_dataset('json', data_files=data_files)
+        datasets = self._post_process(datasets)
+        return datasets
+
+    def _post_process(self, datasets):
+        # This function renames your columns to what the training script expects.
+        def prepare_input(example):
+            example['input'] = example['prompt']
+            example['label'] = example['completion']
+            return example
+
+        datasets = datasets.map(prepare_input)
+        datasets = datasets.remove_columns(['prompt', 'completion'])
+        return datasets
+
+    def _parse_llm_output(self, output):
+        raise NotImplementedError
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -498,6 +533,8 @@ if __name__ == '__main__':
         dataset_loader = ESNLIDatasetLoader()
     elif args.dataset == 'anli1':
         dataset_loader = ANLI1DatasetLoader()
+    elif args.dataset == 'safety':  # <-- ADD THIS LINE
+        dataset_loader = SafetyDatasetLoader()
 
     datasets = dataset_loader.load_from_source()
     dataset_loader.to_json(datasets)

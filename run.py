@@ -18,7 +18,7 @@ import argparse
 from datasets import DatasetDict, concatenate_datasets
 from transformers import AutoTokenizer
 
-from data_utils import CQADatasetLoader, SVAMPDatasetLoader, ESNLIDatasetLoader, ANLI1DatasetLoader, ASDivDatasetLoader
+from data_utils import CQADatasetLoader, SVAMPDatasetLoader, ESNLIDatasetLoader, ANLI1DatasetLoader, ASDivDatasetLoader, SafetyDatasetLoader
 from metrics import compute_text_acc, compute_equation_acc, compute_metrics_text, compute_metrics_equation, compute_metrics_text_aux, compute_metrics_equation_aux
 from train_utils import train_and_evaluate
 
@@ -37,6 +37,8 @@ def run(args):
         dataset_loader = SVAMPDatasetLoader()
         dataset_loader_svamp = SVAMPDatasetLoader()
         dataset_loader_asdiv = ASDivDatasetLoader()
+    elif args.dataset == 'safety':
+        dataset_loader = SafetyDatasetLoader()
     else:
         raise ValueError
 
@@ -92,13 +94,14 @@ def run(args):
         datasets['valid'] = datasets['valid'].add_column('llm_label', valid_llm_labels)
         datasets['valid'] = datasets['valid'].add_column('llm_rationale', valid_llm_rationales)
     else:
-        train_valid_datasets = datasets['train'].train_test_split(test_size=0.1, seed=0)
+      train_temp_datasets = datasets['train'].train_test_split(test_size=0.2, seed=0)
+      valid_test_datasets = train_temp_datasets['test'].train_test_split(test_size=0.5, seed=0)
 
-        datasets = DatasetDict({
-            'train': train_valid_datasets['train'],
-            'valid': train_valid_datasets['test'],
-            'test': datasets['test'],
-        })
+      datasets = DatasetDict({
+          'train': train_temp_datasets['train'],
+          'valid': valid_test_datasets['train'],
+          'test': valid_test_datasets['test'],
+      })
 
     if args.label_type == 'gt':
         pass
@@ -127,6 +130,7 @@ def run(args):
 
     #### Prepare datasets Prepare data for training
     tokenizer = AutoTokenizer.from_pretrained(args.from_pretrained)
+    tokenizer.pad_token = tokenizer.eos_token
 
     if 'nli' in args.dataset:
         datasets = datasets.map(
@@ -152,19 +156,17 @@ def run(args):
             return model_inputs
 
     elif args.model_type == 'standard':
-        def tokenize_function(examples):
-            model_inputs = tokenizer(
-                examples['input'],
-                max_length=args.max_input_length,
-                truncation=True
-            )
+      def tokenize_function(examples):
+          # Causal LMs expect a single sequence.
+          full_text = [p + l for p, l in zip(examples['input'], examples['label'])]
 
-            with tokenizer.as_target_tokenizer():
-                label_output_encodings = tokenizer(examples['label'], max_length=256, truncation=True)
-
-            model_inputs['labels'] = label_output_encodings['input_ids']
-
-            return model_inputs
+          model_inputs = tokenizer(
+              full_text,
+              max_length=args.max_input_length,
+              truncation=True,
+              padding=False
+          )
+          return model_inputs
 
     else:
         raise ValueError
@@ -196,8 +198,9 @@ def run(args):
         else:
             compute_metrics = compute_metrics_equation(tokenizer)
 
-
-    train_and_evaluate(args, args.run, tokenizer, tokenized_datasets, compute_metrics)
+    from transformers import DataCollatorForLanguageModeling
+    data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
+    train_and_evaluate(args, args.run, tokenizer, tokenized_datasets, compute_metrics, data_collator)
 
 
 if __name__ == '__main__':
@@ -213,7 +216,7 @@ if __name__ == '__main__':
     parser.add_argument('--run', type=int, default=0)
     parser.add_argument('--from_pretrained', type=str, default='google/t5-v1_1-base')
     parser.add_argument('--label_type', type=str, default='gt')
-    parser.add_argument('--llm', type=str, default='palm')
+    parser.add_argument('--llm', type=str, default=None)
     parser.add_argument('--max_input_length', type=int, default=1024)
     parser.add_argument('--grad_steps', type=int, default=1)
     parser.add_argument('--local_rank', type=int, default=-1)
@@ -223,7 +226,7 @@ if __name__ == '__main__':
     parser.add_argument('--bf16', action='store_true')
     parser.add_argument('--no_log', action='store_true')
     parser.add_argument('--output_rationale', action='store_true')
-
+    
     args = parser.parse_args()
 
     run(args)
