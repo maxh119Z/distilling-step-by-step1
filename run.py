@@ -155,18 +155,37 @@ def run(args):
 
             return model_inputs
 
+    # run.py (after - recommended)
     elif args.model_type == 'standard':
-      def tokenize_function(examples):
-          # Causal LMs expect a single sequence.
-          full_text = [p + l for p, l in zip(examples['input'], examples['label'])]
-
-          model_inputs = tokenizer(
-              full_text,
-              max_length=args.max_input_length,
-              truncation=True,
-              padding=False
-          )
-          return model_inputs
+        def tokenize_function(examples):
+            # Format prompts using the official Llama 3 Instruct chat template
+            messages_list = []
+            for prompt, label in zip(examples['input'], examples['label']):
+                messages = [
+                    {"role": "user", "content": prompt},
+                    {"role": "assistant", "content": label}
+                ]
+                messages_list.append(messages)
+    
+            # Apply the template and tokenize. add_generation_prompt=False is important
+            # because we are providing the full conversation including the label.
+            tokenized_texts = [tokenizer.apply_chat_template(msgs, tokenize=True, add_generation_prompt=False) for msgs in messages_list]
+    
+            # The tokenizer output is already a dictionary with input_ids, attention_mask, etc.
+            # We need to structure it for the map function.
+            model_inputs = {"input_ids": [], "attention_mask": []}
+            for item in tokenized_texts:
+                model_inputs["input_ids"].append(item)
+                # Assuming attention_mask is implicitly created by the tokenizer,
+                # or you might need to handle padding and attention masks explicitly
+                # if your tokenizer setup requires it. For simplicity, we assume
+                # the trainer's data collator handles padding.
+                model_inputs["attention_mask"].append([1] * len(item))
+    
+            # Important: The 'labels' for causal LM fine-tuning are typically the same as the input_ids.
+            # The model learns to predict the next token. The loss function ignores the prompt part.
+            model_inputs["labels"] = model_inputs["input_ids"].copy()
+            return model_inputs
 
     else:
         raise ValueError
@@ -212,7 +231,7 @@ if __name__ == '__main__':
     parser.add_argument('--eval_steps', type=int, default=250)
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--optimizer_name', type=str, default='AdamW')
-    parser.add_argument('--lr', type=float, default=5e-5)
+    parser.add_argument('--lr', type=float, default=1e-5)
     parser.add_argument('--run', type=int, default=0)
     parser.add_argument('--from_pretrained', type=str, default='google/t5-v1_1-base')
     parser.add_argument('--label_type', type=str, default='gt')
