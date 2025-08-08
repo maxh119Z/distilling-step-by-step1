@@ -26,21 +26,28 @@ def train_and_evaluate(args, run, tokenizer, tokenized_datasets, compute_metrics
         logging_dir = None
 
     # Use Seq2SeqTrainingArguments which includes the predict_with_generate flag
+    # Use Seq2SeqTrainingArguments which includes the predict_with_generate flag
+    # Use Seq2SeqTrainingArguments which includes the predict_with_generate flag
     training_args = Seq2SeqTrainingArguments(
         output_dir,
         remove_unused_columns=False,
         eval_strategy='steps',
-        eval_steps=args.eval_steps,
-        save_strategy='no',
+        eval_steps=200,                        # Evaluate every 200 steps
+        save_strategy='steps',
+        save_steps=200,                        # Save a checkpoint every 200 steps
         logging_dir=logging_dir,
-        logging_strategy=logging_strategy,
-        logging_steps=args.eval_steps,
-        max_steps=args.max_steps,
-        learning_rate=args.lr,
+        logging_strategy='steps',              # Log metrics every 200 steps
+        logging_steps=200,
+        max_steps=2625,                        # Total steps for 3 epochs
+        learning_rate=args.lr,                 # Keep this as a tunable argument
         gradient_accumulation_steps=args.grad_steps,
-        per_device_train_batch_size=args.batch_size,
-        per_device_eval_batch_size=args.batch_size,
-        predict_with_generate=True, # Important for evaluating generative models
+        per_device_train_batch_size=32,        # Your specified batch size
+        per_device_eval_batch_size=32,         # Use same batch size for evaluation
+        predict_with_generate=True,
+        load_best_model_at_end=True,
+        metric_for_best_model='eval_loss',
+        greater_is_better=False,
+        save_total_limit=1,
         seed=run,
         local_rank=args.local_rank,
         bf16=args.bf16,
