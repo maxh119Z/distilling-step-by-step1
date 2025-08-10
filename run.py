@@ -200,7 +200,7 @@ if __name__ == '__main__':
     parser.add_argument('--eval_steps', type=int, default=200)
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--optimizer_name', type=str, default='AdamW8bit')
-    parser.add_argument('--lr', type=float, default=2e-5)
+    parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--run', type=int, default=0)
     parser.add_argument('--max_input_length', type=int, default=512)
     parser.add_argument('--grad_steps', type=int, default=1)
@@ -210,9 +210,11 @@ if __name__ == '__main__':
     parser.add_argument('--bf16', action='store_true', default=True)
     parser.add_argument('--no_log', action='store_true')
     parser.add_argument('--output_rationale', action='store_true')
+
+    parser.add_argument('--lora_r', type=int, default=16, help="LoRA attention dimension (rank).")
+    parser.add_argument('--lora_alpha', type=int, default=32, help="LoRA alpha parameter.")
+    parser.add_argument('--lora_dropout', type=float, default=0.05, help="LoRA dropout probability.")
     
-    args = parser.parse_args()
-    run(args)
     
     args = parser.parse_args()
     run(args)
