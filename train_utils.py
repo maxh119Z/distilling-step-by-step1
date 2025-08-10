@@ -1,54 +1,66 @@
 import torch
-# Revert to using the original Seq2Seq trainer and arguments
-from transformers import Seq2SeqTrainingArguments, Seq2SeqTrainer
-from transformers import AutoModelForCausalLM
+from transformers import AutoModelForCausalLM, Seq2SeqTrainingArguments, Seq2SeqTrainer
 from transformers.trainer_utils import set_seed
-import bitsandbytes.optim as bnb_optim #i added this
+# --- KEY CHANGE: Import PEFT libraries for LoRA ---
+from peft import get_peft_model, LoraConfig
 
 def get_config_dir(args):
-    return f'{args.dataset}/{args.from_pretrained.split("/")[1]}/{args.model_type}/{args.llm}/{args.subsample}/{args.label_type}/{args.alpha}/{args.max_input_length}/{args.grad_steps*args.batch_size}/{args.optimizer_name}/{args.lr}'
-
+    # Update the directory name to include LoRA parameters for better tracking
+    lora_config_str = f"lora_r{args.lora_r}_alpha{args.lora_alpha}"
+    return f'{args.dataset}/{args.from_pretrained.split("/")[-1]}/{lora_config_str}/{args.max_input_length}/{args.grad_steps*args.batch_size}/{args.lr}'
 
 def train_and_evaluate(args, run, tokenizer, tokenized_datasets, compute_metrics, data_collator=None):
     set_seed(run)
+    
+    # Load the base model as before
     model = AutoModelForCausalLM.from_pretrained(
-      args.from_pretrained,
-      torch_dtype=torch.bfloat16,
-      device_map="auto",
+        args.from_pretrained,
+        torch_dtype=torch.bfloat16,
+        device_map="auto",
+        attn_implementation="eager"
     )
 
+    # --- KEY CHANGE: Define LoRA configuration ---
+    peft_config = LoraConfig(
+        r=args.lora_r,
+        lora_alpha=args.lora_alpha,
+        lora_dropout=args.lora_dropout,
+        bias="none",
+        task_type="CAUSAL_LM",
+        target_modules=["q_proj", "k_proj", "v_proj"],
+    )
+
+    # --- KEY CHANGE: Apply LoRA to the model ---
+    model = get_peft_model(model, peft_config)
+    # This will print the percentage of trainable parameters, which will be very small!
+    model.print_trainable_parameters()
+
     config_dir = get_config_dir(args)
-    output_dir = f'ckpts/{config_dir}/{run}'
+    output_dir = f'ckpts/{config_dir}/{run}' 
     logging_dir = f'logs/{config_dir}/{run}'
-
-    logging_strategy = 'steps' if not args.no_log else 'no'
-    if args.no_log:
-        logging_dir = None
-
-    # Use Seq2SeqTrainingArguments which includes the predict_with_generate flag
+    
+    total_generation_length = args.max_input_length + args.max_new_tokens
+    
     training_args = Seq2SeqTrainingArguments(
-        output_dir,
-        remove_unused_columns=False,
-        eval_strategy='steps',
+        output_dir=output_dir,
+        eval_strategy="steps",
         eval_steps=args.eval_steps,
-        save_strategy='no',
-        logging_dir=logging_dir,
-        logging_strategy=logging_strategy,
+        save_strategy="no",
+        logging_strategy='steps',
         logging_steps=args.eval_steps,
         max_steps=args.max_steps,
         learning_rate=args.lr,
-        gradient_accumulation_steps=args.grad_steps,
         per_device_train_batch_size=args.batch_size,
-        per_device_eval_batch_size=args.batch_size,
-        predict_with_generate=True, # Important for evaluating generative models
+        gradient_accumulation_steps=args.grad_steps,
+        predict_with_generate=True,
         seed=run,
-        local_rank=args.local_rank,
         bf16=args.bf16,
-        generation_max_length=args.gen_max_len,
+        generation_max_length=total_generation_length,
+        report_to="tensorboard",
     )
 
-    optimizer = bnb_optim.AdamW8bit(model.parameters(), lr=args.lr)#i had to add this
-    # Use the Seq2SeqTrainer
+    # The Trainer is smart enough to handle the PEFT model automatically.
+    # We no longer need the custom optimizer block.
     trainer = Seq2SeqTrainer(
         model=model,
         args=training_args,
@@ -57,8 +69,13 @@ def train_and_evaluate(args, run, tokenizer, tokenized_datasets, compute_metrics
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
         data_collator=data_collator,
-        optimizers=(optimizer, None),#I had to add this
     )
-    
+
+    print("🚀 Starting LoRA training...")
     trainer.train()
-    print(f"finished training")
+    print("✅ Training finished.")
+
+    final_model_path = f"fine-tuned-models/{config_dir}/{run}/final_model"
+    trainer.save_model(final_model_path)
+    tokenizer.save_pretrained(final_model_path)
+    print(f"🎉 Final model saved successfully to: {final_model_path}")
