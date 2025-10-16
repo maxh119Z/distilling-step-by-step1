@@ -1,3 +1,5 @@
+#MAIN TRAINING FILE
+
 import torch
 from transformers import AutoModelForCausalLM, TrainingArguments, Trainer
 from transformers.trainer_utils import set_seed
@@ -53,7 +55,7 @@ def train_and_evaluate(args, run, tokenizer, tokenized_datasets, compute_metrics
         eval_strategy="steps",
         eval_steps=args.eval_steps,
         save_strategy="steps",
-        save_steps=500,
+        save_steps=400,
         logging_first_step=True,
         disable_tqdm=False,
         logging_steps=10,
@@ -65,9 +67,7 @@ def train_and_evaluate(args, run, tokenizer, tokenized_datasets, compute_metrics
         seed=run,
         bf16=args.bf16,
         report_to="tensorboard",
-        remove_unused_columns=False,
-        load_best_model_at_end=True,  # Loads the best adapter at the end
-        save_total_limit=2,
+        remove_unused_columns=False
     )
 
     # 4. Initialize the Trainer
@@ -77,7 +77,7 @@ def train_and_evaluate(args, run, tokenizer, tokenized_datasets, compute_metrics
         train_dataset=tokenized_datasets["train"],
         eval_dataset=tokenized_datasets["valid"],
         tokenizer=tokenizer,
-        compute_metrics=None,
+        compute_metrics=None,#ideal epoch already determined, turn off excess validations.
         data_collator=data_collator,
     )
 
@@ -90,5 +90,5 @@ def train_and_evaluate(args, run, tokenizer, tokenized_datasets, compute_metrics
     final_model_path = f"fine-tuned-models/{config_dir}/{run}/final_model"
     trainer.save_model(final_model_path)
     tokenizer.save_pretrained(final_model_path)
-    print(f"✅ Final LoRA adapter saved successfully to: {final_model_path}")
+    print(f"Final LoRA adapter saved successfully to: {final_model_path}")
 
