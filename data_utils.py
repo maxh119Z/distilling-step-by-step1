@@ -1,3 +1,6 @@
+#original setup from https://github.com/google-research/distilling-step-by-step
+#existing functions were not removed
+
 #MAIN CODE CHANGES:
 #ADDED FUNCTION class SafetyDatasetLoader(DatasetLoader):
 #OTHER FUNCTIONS unimportant. SafetyDatasetLoader is the main usage for our project from this file and main change.
