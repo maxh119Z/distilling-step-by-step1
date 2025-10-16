@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+#NOT UTILIZED IN OUR PROJECT
+#FILE COULD BE IGNORED. MAIN FILES ARE run.py AND train_utils.py
 import numpy as np
 
 
