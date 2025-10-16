@@ -1,1 +1,1 @@
-Unzip the file
+Includes o1-mini ground-truth labels for distillation. Unzip safety_train.zip for fine-tuning
