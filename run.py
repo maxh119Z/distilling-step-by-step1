@@ -1,3 +1,6 @@
+#Main changes: Added Safety sections
+#sets up datasets
+
 import argparse
 from datasets import DatasetDict, concatenate_datasets
 from transformers import AutoTokenizer, DataCollatorForLanguageModeling
