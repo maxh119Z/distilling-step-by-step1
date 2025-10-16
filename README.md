@@ -6,27 +6,27 @@ Our core experiment involved fine-tuning three student models—`Llama-3-8B`, `G
 
 ### Key Findings
 
-* [cite_start]**Safety Degradation**: Fine-tuning on "safe" refusal data from the teacher model inadvertently increased the Jailbreak Success Rate (JSR) for all student models by up to 16.6 percentage points[cite: 8].
-* [cite_start]**Reasoning-Safety Trade-off**: The attempt to instill safety led to a consistent decline in general reasoning capabilities across all models, as measured by the GSM8K benchmark[cite: 190].
-* [cite_start]**Causal Analysis**: We attribute the observed degradation to a combination of factors including nuanced 'boundary' data, amplification of teacher vulnerabilities, and catastrophic forgetting[cite: 139].
+**Safety Degradation**: Fine-tuning on "safe" refusal data from the teacher model inadvertently increased the Jailbreak Success Rate (JSR) for all student models by up to 16.6 percentage points
+**Reasoning-Safety Trade-off**: The attempt to instill safety led to a consistent decline in general reasoning capabilities across all models, as measured by the GSM8K benchmark
+**Causal Analysis**: We attribute the observed degradation to a combination of factors including nuanced 'boundary' data, amplification of teacher vulnerabilities, and catastrophic forgetting.
 
 ### Methodology Overview
 
-[cite_start]Our experimental pipeline consists of five key stages[cite: 65]:
+Our experimental pipeline consists of five key stages:
 
-1.  [cite_start]**Data Curation**: We sourced ~28,000 multilingual jailbreak prompts from the XSafety dataset[cite: 67].
-2.  [cite_start]**Teacher Response Generation**: The teacher model, `OpenAI o1-mini`, generated safe refusal responses for these prompts[cite: 68].
-3.  [cite_start]**Distillation Dataset Creation**: We paired the prompts and the teacher's refusals to create the fine-tuning dataset[cite: 70].
-4.  [cite_start]**LoRA PEFT**: We used Low-Rank Adaptation (LoRA) to efficiently fine-tune the student models on this dataset[cite: 73].
-5.  [cite_start]**Evaluation**: We evaluated the models on the MultiJail benchmark, using `GPT-4o` as an automated judge to classify responses as safe, unsafe, or invalid[cite: 77, 78].
+1.  **Data Curation**: We sourced ~28,000 multilingual jailbreak prompts from the XSafety dataset (https://github.com/Jarviswang94/Multilingual_safety_benchmark).
+2.  **Teacher Response Generation**: The teacher model, `OpenAI o1-mini`, generated safe refusal responses for these prompts.
+3.  **Distillation Dataset Creation**: We paired the prompts and the teacher's refusals to create the fine-tuning dataset.
+4.  **LoRA PEFT**: We used Low-Rank Adaptation (LoRA) to efficiently fine-tune the student models on this datasets.
+5.  **Evaluation**: We evaluated the models on the MultiJail benchmark, using `GPT-4o` as an automated judge to classify responses as safe, unsafe, or invalid.
 
 ---
 
-### 🚀 Getting Started
+### Getting Started
 
 Follow the instructions in `MAIN.ipynb` to run the code. The notebook is designed to be run cell-by-cell.
 
-Before running, you must add your secret keys for Hugging Face and OpenAI at the indicated locations (`XXXX-8` for the Hugging Face token and `XXXX-9` for the OpenAI API key) in the notebook.
+Before running, you must add your secret keys for Hugging Face and OpenAI in the notebook.
 
 ### 📂 Repository Structure
 
