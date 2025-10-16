@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
+#MAIN CODE CHANGES:
+#ADDED FUNCTION class SafetyDatasetLoader(DatasetLoader):
+#OTHER FUNCTIONS unimportant. SafetyDatasetLoader is the main usage for our project from this file and main change.
 import argparse
 import re
 import json
@@ -533,7 +535,7 @@ if __name__ == '__main__':
         dataset_loader = ESNLIDatasetLoader()
     elif args.dataset == 'anli1':
         dataset_loader = ANLI1DatasetLoader()
-    elif args.dataset == 'safety':  # <-- ADD THIS LINE
+    elif args.dataset == 'safety':  # <-- Usage for our Project. Other versions are defaults in Google's original Distill-step-by-step. Can delete if needed
         dataset_loader = SafetyDatasetLoader()
 
     datasets = dataset_loader.load_from_source()
